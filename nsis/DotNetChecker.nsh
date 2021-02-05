@@ -1,3 +1,4 @@
+!include StdUtils.nsh
 !macro CheckNetFramework FrameworkVersion
 	Var /GLOBAL dotNetUrl${FrameworkVersion}
 	Var /GLOBAL dotNetReadableVersion${FrameworkVersion}
@@ -117,7 +118,28 @@ DownloadDotNET${FrameworkVersion}:
 	${EndIf}
 
 	DetailPrint "Pausing installation while downloaded .NET Framework installer runs."
-	ExecWait '$TEMP\dotnetfx.exe /q /c:"install /q"'
+    ${StdUtils.ExecShellWaitEx} $0 $1 "$TEMP\dotnetfx.exe" "open" '/c:"install"'
+    StrCmp $0 "error" ExecFailed
+    StrCmp $0 "no_wait" WaitNotPossible
+    StrCmp $0 "ok" WaitForProc
+    Abort
+    WaitForProc:
+    DetailPrint "Waiting"
+    ${StdUtils.WaitForProcEx} $2 $1
+    DetailPrint "exit code: $2"
+    StrCmp "$2" "" WaitDone
+    StrCmp "$2" "0" WaitDone
+    StrCmp "$2" "3010" WaitDone
+    StrCmp "$2" "8192" WaitDone
+
+    ExecFailed:
+    DetailPrint "Failed"
+    Abort "Installation failed."
+
+    WaitNotPossible:
+    DetailPrint "Cannot wait"
+	Abort "Installation failed."
+    WaitDone:
 
 	DetailPrint "Completed .NET Framework install/update. Removing .NET Framework installer."
 	Delete "$TEMP\dotnetfx.exe"
